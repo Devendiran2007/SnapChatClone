@@ -1,0 +1,25 @@
+## Build and Output Folders
+bin/
+obj/
+publish/
+
+## IDE and Editor Folders
+.vs/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+.idea/
+
+## OS Files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+## EF Core Migrations and local databases
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3

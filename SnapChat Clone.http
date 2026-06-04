@@ -1,0 +1,6 @@
+@SnapChat_Clone_HostAddress = http://localhost:5204
+
+GET {{SnapChat_Clone_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
