@@ -95,17 +95,20 @@ public class FriendRequestController : ControllerBase
             .Where(f => f.ReceiverId == userID
             && f.Status == FriendRequestStatus.Pending).ToList();
 
-        var pendingRequestNames = new List<string>();
+        var pendingRequestDetails = new List<object>();
 
         foreach (var request in pendingRequests)
         {
             var user = _context.Users.Find(request.SenderId);
             if (user?.Username != null)
             {
-                pendingRequestNames.Add(user.Username);
+                pendingRequestDetails.Add(new {
+                    RequestId = request.Id,
+                    SenderUsername = user.Username
+                });
             }
         }
-        return Ok(pendingRequestNames);
+        return Ok(pendingRequestDetails);
     }
 
     [HttpPost("accept")]

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SnapChat Clone - Chat</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="gradient-bg"></div>
+
+    <div class="app-container">
+        <!-- Sidebar (Left Panel) -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="user-profile-summary">
+                    <div class="avatar-circle" id="user-avatar">U</div>
+                    <div class="user-info-text">
+                        <div class="username-heading" id="user-display-name">Username</div>
+                        <div class="user-status-online">Online</div>
+                    </div>
+                </div>
+                
+                <div class="header-actions">
+                    <button class="icon-btn" onclick="goToFriends()" title="Manage Friends">
+                        <i class="fa-user-group fas"></i>
+                    </button>
+                    <button class="icon-btn" onclick="logout()" title="Logout" style="color: var(--accent-red)">
+                        <i class="fa-right-from-bracket fas"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Search Conversations -->
+            <div class="sidebar-search">
+                <div class="search-box">
+                    <i class="fa-magnifying-glass fas"></i>
+                    <input type="text" class="search-input" id="chat-search" placeholder="Search chats..." oninput="filterRecentChats()">
+                </div>
+            </div>
+
+            <!-- Recent Conversations List -->
+            <div class="list-container" id="recent-chats-list">
+                <!-- Recent chats dynamically populated -->
+                <div style="text-align: center; color: var(--text-gray); padding: 2rem;">
+                    <i class="fa-spinner fa-spin fas" style="color: var(--snap-yellow); font-size: 1.5rem; margin-bottom: 0.5rem;"></i>
+                    <p>Loading chats...</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Chat Area (Right Panel) -->
+        <main class="chat-window">
+            <!-- Empty Chat State -->
+            <div class="empty-chat-state" id="empty-chat-state">
+                <div class="empty-chat-icon">
+                    <i class="fa-ghost fas"></i>
+                </div>
+                <h2>Say Hello!</h2>
+                <p style="margin-top: 0.5rem; max-width: 300px; line-height: 1.5;">Select a conversation from the sidebar or manage your friends list to start a chat.</p>
+                <button class="btn-primary" onclick="goToFriends()" style="width: auto; margin-top: 1.5rem;">
+                    <i class="fa-user-group fas"></i> Find Friends
+                </button>
+            </div>
+
+            <!-- Active Chat View (hidden by default) -->
+            <div class="flex-grow hidden" id="active-chat-view" style="display: flex; flex-direction: column; height: 100%;">
+                <!-- Chat Header -->
+                <header class="chat-header">
+                    <div class="chat-header-user">
+                        <div class="avatar-circle" id="active-friend-avatar" style="background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-green) 100%);">F</div>
+                        <div>
+                            <div class="username-heading" id="active-friend-name">Friend Username</div>
+                            <div class="user-status-online" id="active-friend-status" style="font-size: 0.75rem; color: var(--text-gray);">Offline</div>
+                        </div>
+                    </div>
+                    
+                    <div class="header-actions">
+                        <button class="icon-btn" onclick="closeChat()" title="Close Chat">
+                            <i class="fa-xmark fas"></i>
+                        </button>
+                    </div>
+                </header>
+
+                <!-- Messages Viewport -->
+                <div class="chat-messages" id="chat-messages-container">
+                    <!-- Message bubbles dynamically populated here -->
+                </div>
+
+                <!-- Typing indicator -->
+                <div class="typing-indicator hidden" id="typing-indicator" style="margin-left: 2rem; margin-bottom: 0.5rem;">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
+
+                <!-- Chat Input Box -->
+                <div class="chat-input-area">
+                    <form class="chat-input-form" id="chat-form" onsubmit="event.preventDefault(); handleSendMessage();">
+                        <input type="text" class="chat-input-text" id="message-text-input" placeholder="Send a chat..." oninput="handleTypingEvent()" autocomplete="off">
+                        <button type="submit" class="chat-send-btn">
+                            <i class="fa-paper-plane fas"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- SignalR client library CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    <script src="js/chat.js"></script>
+</body>
+</html>

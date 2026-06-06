@@ -67,17 +67,34 @@ public class MessageService : IMessageService
     }
     
     public async Task<List<RecentChatDto>> GetRecentChatsAsync(int userId) {
-        var recentChats = await _context.Messages
-        .Where(m => m.SenderId == userId || m.ReceiverId == userId)
-        .OrderByDescending(m => m.SentAt)
-        .GroupBy(m => m.ReceiverId == userId ? m.SenderId : m.ReceiverId)
-        .Select(g => new RecentChatDto {
-            UserId = g.Key,
-            LastMessage = g.First().Content,
-            LastMessageTime = g.First().SentAt,
-            IsOnline = _connectionManager.IsOnline(g.Key)
+        var messages = await _context.Messages
+            .Where(m => m.SenderId == userId || m.ReceiverId == userId)
+            .ToListAsync();
+
+        var grouped = messages
+            .GroupBy(m => m.SenderId == userId ? m.ReceiverId : m.SenderId)
+            .Select(g => new {
+                FriendId = g.Key,
+                LastMsg = g.OrderByDescending(m => m.SentAt).First()
+            })
+            .ToList();
+
+
+        var friendIds = grouped.Select(x => x.FriendId).ToList();
+        var friends = await _context.Users
+            .Where(u => friendIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.Username);
+
+
+        var recentChats = grouped.Select(x => new RecentChatDto {
+            UserId = x.FriendId,
+            Username = friends.ContainsKey(x.FriendId) ? friends[x.FriendId] : "Unknown",
+            LastMessage = x.LastMsg.Content,
+            LastMessageTime = x.LastMsg.SentAt,
+            IsOnline = _connectionManager.IsOnline(x.FriendId)
         })
-        .ToListAsync();
+        .OrderByDescending(rc => rc.LastMessageTime)
+        .ToList();
 
         return recentChats;
     }

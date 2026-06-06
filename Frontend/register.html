@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SnapChat Clone - Register</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="gradient-bg"></div>
+
+    <div class="auth-container">
+        <div class="auth-header">
+            <div class="auth-logo">
+                <i class="fa-ghost fas"></i>
+                <span>snapchat</span>
+            </div>
+            <p class="auth-subtitle">Create a new account to connect with friends</p>
+        </div>
+
+        <div id="auth-error" class="toast">
+            <i class="fa-circle-exclamation fas"></i>
+            <span id="error-message"></span>
+        </div>
+        <div id="auth-success" class="toast" style="border-left-color: var(--accent-green)">
+            <i class="fa-circle-check fas" style="color: var(--accent-green)"></i>
+            <span id="success-message"></span>
+        </div>
+
+        <form id="register-form" onsubmit="event.preventDefault(); register();">
+            <div class="form-group">
+                <label class="form-label" for="username">Username</label>
+                <input type="text" id="username" class="form-input" placeholder="Choose a username" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="email">Email</label>
+                <input type="email" id="email" class="form-input" placeholder="Enter your email" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="password">Password</label>
+                <input type="password" id="password" class="form-input" placeholder="Create a strong password" required>
+            </div>
+
+            <button type="submit" class="btn-primary">
+                <span>Sign Up</span>
+                <i class="fa-user-plus fas"></i>
+            </button>
+        </form>
+
+        <div class="auth-footer">
+            <p>Already have an account? <a href="login.html" class="auth-link">Log In</a></p>
+        </div>
+    </div>
+
+    <script src="js/auth.js"></script>
+</body>
+</html>

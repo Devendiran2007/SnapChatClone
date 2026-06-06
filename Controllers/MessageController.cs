@@ -91,7 +91,11 @@ public class MessageController : ControllerBase
         return Ok(getconversation);
     }
 
-
-
-
+    [HttpGet("recent")]
+    public async Task<IActionResult> GetRecentChats()
+    {
+        var userId = GetCurrentUserId();
+        var recentChats = await _messageService.GetRecentChatsAsync(userId);
+        return Ok(recentChats);
+    }
 }

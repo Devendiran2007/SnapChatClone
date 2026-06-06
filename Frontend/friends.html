@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SnapChat Clone - Friends</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="gradient-bg"></div>
+
+    <!-- Header / Navbar -->
+    <header class="chat-header" style="background: var(--glass-bg); backdrop-filter: blur(12px); border-bottom: 1px solid var(--glass-border);">
+        <div class="user-profile-summary">
+            <div class="avatar-circle" id="user-avatar">U</div>
+            <div class="user-info-text">
+                <div class="username-heading" id="user-display-name">Username</div>
+                <div class="user-status-online">Online</div>
+            </div>
+        </div>
+        
+        <div class="friends-title" style="font-size: 1.5rem; margin-bottom: 0;">
+            <i class="fa-ghost fas" style="color: var(--snap-yellow)"></i>
+            <span>snapchat</span>
+        </div>
+
+        <div class="header-actions">
+            <button class="icon-btn" onclick="openAddFriendModal()" title="Add Friend">
+                <i class="fa-user-plus fas"></i>
+            </button>
+            <button class="icon-btn" onclick="goToChat()" title="Go to Chats">
+                <i class="fa-message fas"></i>
+            </button>
+            <button class="icon-btn" onclick="logout()" title="Logout" style="color: var(--accent-red)">
+                <i class="fa-right-from-bracket fas"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="friends-container">
+        <!-- Toast notifications -->
+        <div id="friends-toast" class="toast">
+            <i class="fa-bell fas"></i>
+            <span id="toast-message">Message</span>
+        </div>
+
+        <div class="friends-header">
+            <h1 class="friends-title">My <span>Friends</span></h1>
+            
+            <div class="sidebar-tabs" style="padding: 0; margin-bottom: 0;">
+                <button class="tab-btn active" id="tab-my-friends" onclick="switchTab('friends')">
+                    Friends <span class="badge" id="friends-count">0</span>
+                </button>
+                <button class="tab-btn" id="tab-pending" onclick="switchTab('pending')">
+                    Pending <span class="badge" id="pending-count" style="background: var(--accent-blue); color: white;">0</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Friends List Grid -->
+        <div class="friends-grid" id="friends-list">
+            <!-- Friend cards dynamically loaded here -->
+            <div class="text-center" style="grid-column: 1/-1; color: var(--text-gray); padding: 3rem;">
+                <i class="fa-spinner fa-spin fas" style="font-size: 2rem; color: var(--snap-yellow); margin-bottom: 1rem;"></i>
+                <p>Loading friends...</p>
+            </div>
+        </div>
+
+        <!-- Pending Requests Grid -->
+        <div class="friends-grid hidden" id="pending-list">
+            <!-- Pending request cards dynamically loaded here -->
+        </div>
+    </main>
+
+    <!-- Add Friend Modal -->
+    <div class="modal-overlay" id="add-friend-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Add Friend</h3>
+                <button class="modal-close-btn" onclick="closeAddFriendModal()">
+                    <i class="fa-xmark fas"></i>
+                </button>
+            </div>
+            
+            <div class="search-box">
+                <i class="fa-magnifying-glass fas"></i>
+                <input type="text" id="user-search-input" class="search-input" placeholder="Search users by username..." oninput="searchUsers()">
+            </div>
+
+            <div class="user-results-list" id="search-results">
+                <p style="text-align: center; color: var(--text-gray); padding: 1.5rem 0;">Type a username to start searching</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/friends.js"></script>
+</body>
+</html>
