@@ -2,15 +2,22 @@ using Microsoft.AspNetCore.SignalR;
 using SnapChatClone.Data;
 using System.Security.Claims;
 using SnapChatClone.Models;
+using SnapChatClone.Services.Messages;
+using SnapChatClone.DTOs;
+using SnapChatClone.Services.Connections;
 
 public class ChatHub : Hub
 {
     private static Dictionary<int , List<string>> _connections = new();
     private readonly ApplicationDbContext _context;
+    private readonly ConnectionManager _connectionManager;
+    private readonly IMessageService _messageService;
 
-    public ChatHub(ApplicationDbContext context)
+    public ChatHub(ApplicationDbContext context, ConnectionManager connectionManager , IMessageService messageService)
     {
         _context = context;
+        _connectionManager = connectionManager;
+        _messageService = messageService;
     }
 
     public int GetCurrentUserId() {
@@ -53,32 +60,16 @@ public class ChatHub : Hub
     {
         var senderId = GetCurrentUserId();
 
-        var freindCheck = _context.Friendships.Any(
-            s => (s.UserId == senderId && s.FriendId == receiverId)
-            || (s.UserId == receiverId && s.FriendId == senderId)
-        );
+        var savedMessage = await _messageService.SendMessageAsync(senderId , new SendMessageDto { ReceiverId = receiverId , Content = content });
 
-        if (!freindCheck) {
-            return;
-        }
-
-        var message = new Message
-        {
-            SenderId = senderId,
-            ReceiverId = receiverId,
-            Content = content,
-            SentAt = DateTime.UtcNow
-        };
-
-        await _context.Messages.AddAsync(message);
-        await _context.SaveChangesAsync();
+        if (savedMessage == null) return;
 
         if (_connections.ContainsKey(receiverId))
         {
             var connections = _connections[receiverId];
             foreach (var connectionId in connections)
             {
-                await Clients.Client(connectionId).SendAsync("ReceiveMessage", senderId, content);
+                await Clients.Client(connectionId).SendAsync("ReceiveMessage",savedMessage.SenderId,savedMessage.Content);
             }
         }
 
@@ -90,8 +81,33 @@ public class ChatHub : Hub
                 {
                     continue; 
                 }
-                await Clients.Client(connectionId).SendAsync("ReceiveMessage",senderId,content);
+                await Clients.Client(connectionId).SendAsync("ReceiveMessage",savedMessage.SenderId,savedMessage.Content);
             }
         }
-    }   
+    }
+
+    public async Task Typing(int receiverId)
+    {
+        var senderId = GetCurrentUserId();
+        
+        var receiverConnections = _connectionManager.GetConnections(receiverId);
+
+        foreach(var connectionId in receiverConnections)
+        {
+            await Clients.Client(connectionId).SendAsync("UserTyping",senderId);
+        }
+    }
+
+    public async Task StopTyping(int receiverId)
+    {
+        var senderId = GetCurrentUserId();
+
+        var receiverConnections = _connectionManager.GetConnections(receiverId);
+
+        foreach(var connectionId in receiverConnections)
+        {
+            await Clients.Client(connectionId).SendAsync("UserStopTyping",senderId);
+        }
+    }
+
 }

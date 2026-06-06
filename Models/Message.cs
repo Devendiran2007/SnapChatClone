@@ -12,5 +12,9 @@ namespace SnapChatClone.Models
         public string Content { get; set; }
 
         public DateTime SentAt { get; set; }
+
+        public bool IsDelivered { get; set; }
+
+        public bool IsSeen { get; set; }
     }
 }

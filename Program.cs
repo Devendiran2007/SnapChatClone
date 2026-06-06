@@ -4,11 +4,16 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using SnapChatClone.Services.Messages;
+using SnapChatClone.Services.Connections;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
+
+builder.Services.AddSingleton<ConnectionManager>();
+builder.Services.AddScoped<IMessageService , MessageService>();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {

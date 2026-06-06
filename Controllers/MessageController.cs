@@ -4,6 +4,9 @@ using System.Security.Claims;
 using SnapChatClone.Models;
 using SnapChatClone.DTOs;
 using SnapChatClone.Data;
+using SnapChatClone.Services.Messages;
+using Microsoft.AspNetCore.SignalR;
+using SnapChatClone.Services.Connections;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -11,9 +14,15 @@ using SnapChatClone.Data;
 public class MessageController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
+    private readonly IMessageService _messageService;
+    private readonly IHubContext<ChatHub> _hubContext;
+    private readonly ConnectionManager _connectionManager;
 
-    public MessageController(ApplicationDbContext context) {
+    public MessageController(ApplicationDbContext context, IMessageService messageService, IHubContext<ChatHub> hubContext, ConnectionManager connectionManager) {
         _context = context;
+        _messageService = messageService;
+        _hubContext = hubContext;
+        _connectionManager = connectionManager;
     }
 
     private int GetCurrentUserId()
@@ -50,7 +59,9 @@ public class MessageController : ControllerBase
             SenderId = userId,
             ReceiverId = sendMessageDto.ReceiverId,
             Content = sendMessageDto.Content,
-            SentAt = DateTime.UtcNow
+            SentAt = DateTime.UtcNow,
+            IsDelivered = false,
+            IsSeen = false
         };
 
         _context.Messages.Add(newMessage);
@@ -60,29 +71,24 @@ public class MessageController : ControllerBase
     }
 
     [HttpGet("conversation/{id}")]
-    public IActionResult GetConversation(int id)
+    public async Task<IActionResult> GetConversation(int id)
     {
         var userId = GetCurrentUserId();
 
-        var friendCheck = _context.Friendships.Any(
-            s => s.UserId == userId 
-            && s.FriendId == id
-        );
+        var seenMessages = await _messageService.MarkConversationAsSeenAsync(userId , id);
 
-        if (!friendCheck) {
-            return BadRequest("Your Not Freinds with the User");
+        foreach (var message in seenMessages)
+        {
+            var senderConnections = _connectionManager.GetConnections(message.SenderId);
+
+            foreach (var connectionId in senderConnections) {
+                await _hubContext.Clients.Client(connectionId).SendAsync("MessageSeen", message);
+            }
         }
 
-        var conversation = _context.Messages
-        .Where(m => (m.SenderId == userId && m.ReceiverId == id) || (m.SenderId == id && m.ReceiverId == userId)).OrderBy(m => m.SentAt)
-        .Select(m => new {
-            m.SenderId,
-            m.Content,
-            m.SentAt
-        })
-        .ToList();
+        var getconversation = await _messageService.GetConversationAsync(userId , id);
 
-        return Ok(conversation);
+        return Ok(getconversation);
     }
 
 

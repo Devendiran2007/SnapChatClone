@@ -4,6 +4,7 @@ using SnapChatClone.Data;
 using System.Security.Claims;
 using SnapChatClone.Models;
 using Microsoft.AspNetCore.Authorization;
+using SnapChatClone.Services.Connections;
 
 namespace SnapChatClone.Controllers;
 
@@ -13,10 +14,12 @@ namespace SnapChatClone.Controllers;
 public class FriendRequestController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
+    private readonly ConnectionManager _connectionManager;
 
-    public FriendRequestController(ApplicationDbContext context)
+    public FriendRequestController(ApplicationDbContext context , ConnectionManager connectionManager)
     {
         _context = context;
+        _connectionManager = connectionManager;
     }
 
     [HttpPost("send-request")]
@@ -186,8 +189,8 @@ public class FriendRequestController : ControllerBase
         return Ok("Request Rejected");
     }
 
-    [HttpGet("freinds")]
-    public IActionResult GetFreinds()
+    [HttpGet("friends")]
+    public IActionResult GetFriends()
     {
         var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (userIdStr == null)
@@ -207,6 +210,12 @@ public class FriendRequestController : ControllerBase
                  user.Username
              }).ToList();
 
-        return Ok(friends);
+        var result = friends.Select(f => new {
+            Id = f.Id,
+            Username = f.Username,
+            IsOnline = _connectionManager.IsOnline(f.Id)
+        });
+
+        return Ok(result);
     }
 }
