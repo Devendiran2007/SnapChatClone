@@ -15,5 +15,6 @@ public class ApplicationDbContext : DbContext
     public DbSet<FriendRequest> FriendRequests { get; set; }
     public DbSet<Friendship> Friendships { get; set; }
     public DbSet<Message> Messages { get ; set;}
+    public DbSet<Story> Stories { get; set; }
 
 }

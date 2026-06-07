@@ -5,6 +5,7 @@ using System.Security.Claims;
 using SnapChatClone.Models;
 using Microsoft.AspNetCore.Authorization;
 using SnapChatClone.Services.Connections;
+using SnapChatClone.Services.Friends;
 
 namespace SnapChatClone.Controllers;
 
@@ -15,17 +16,20 @@ public class FriendRequestController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
     private readonly ConnectionManager _connectionManager;
+    private readonly IFriendsService _friendsService;
 
-    public FriendRequestController(ApplicationDbContext context , ConnectionManager connectionManager)
+    public FriendRequestController(ApplicationDbContext context , ConnectionManager connectionManager , IFriendsService friendsService)
     {
         _context = context;
         _connectionManager = connectionManager;
+        _friendsService = friendsService;
     }
 
     [HttpPost("send-request")]
-    public IActionResult SendRequest(SendFriendRequestDto sendFriendRequestDto)
+    public async Task<IActionResult> SendRequest(SendFriendRequestDto sendFriendRequestDto)
     {
         var senderId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        
         if (senderId == null)
         {
             return Unauthorized();
@@ -33,56 +37,19 @@ public class FriendRequestController : ControllerBase
 
         var senderIdInt = int.Parse(senderId);
 
-        var friend = _context.Users.Find(sendFriendRequestDto.ReceiverId);
-        if (friend == null)
+        try
         {
-            return BadRequest("User Not Found");
+            await _friendsService.SendFriendRequest(senderIdInt , sendFriendRequestDto);
+            return Ok("Request Sent");
         }
-
-        if (senderIdInt == sendFriendRequestDto.ReceiverId)
+        catch (Exception ex)
         {
-            return BadRequest("You Cant Send Request to Yourself");
+            return BadRequest(ex.Message);
         }
-
-        var checkRequest = _context.FriendRequests.FirstOrDefault(
-            s => s.SenderId == senderIdInt
-            && s.ReceiverId == sendFriendRequestDto.ReceiverId
-        );
-
-        if (checkRequest != null)
-        {
-            return BadRequest("Request Already Sent");
-        }
-
-        var reverseRequest = _context.FriendRequests.FirstOrDefault(
-            s => s.SenderId == sendFriendRequestDto.ReceiverId
-            && s.ReceiverId == senderIdInt
-            && s.Status == FriendRequestStatus.Pending
-        );
-
-        if (reverseRequest != null)
-        {
-            reverseRequest.Status = FriendRequestStatus.Accepted;
-            _context.SaveChanges();
-            return Ok("Request Accepted");
-        }
-
-        var newRequest = new FriendRequest
-        {
-            SenderId = senderIdInt,
-            ReceiverId = sendFriendRequestDto.ReceiverId,
-            Status = FriendRequestStatus.Pending,
-            CreatedAt = DateTime.UtcNow,
-        };
-
-        _context.FriendRequests.Add(newRequest);
-        _context.SaveChanges();
-
-        return Ok("Request Sent");
     }
 
     [HttpGet("pending")]
-    public IActionResult GetPendingRequests()
+    public async Task<IActionResult> GetPendingRequests()
     {
         var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (userIdStr == null)
@@ -91,28 +58,19 @@ public class FriendRequestController : ControllerBase
         }
         var userID = int.Parse(userIdStr);
 
-        var pendingRequests = _context.FriendRequests
-            .Where(f => f.ReceiverId == userID
-            && f.Status == FriendRequestStatus.Pending).ToList();
-
-        var pendingRequestDetails = new List<object>();
-
-        foreach (var request in pendingRequests)
+        try
         {
-            var user = _context.Users.Find(request.SenderId);
-            if (user?.Username != null)
-            {
-                pendingRequestDetails.Add(new {
-                    RequestId = request.Id,
-                    SenderUsername = user.Username
-                });
-            }
+            var pendingRequests = await _friendsService.GetPendingRequest(userID);
+            return Ok(pendingRequests);
         }
-        return Ok(pendingRequestDetails);
+        catch (Exception ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     [HttpPost("accept")]
-    public IActionResult AcceptRequest(FriendRequestActionDto friendRequestDto)
+    public async Task<IActionResult> AcceptRequest(FriendRequestActionDto friendRequestDto)
     {
         var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (userIdStr == null)
@@ -121,47 +79,19 @@ public class FriendRequestController : ControllerBase
         }
         var userId = int.Parse(userIdStr);
 
-        var request = _context.FriendRequests.Find(friendRequestDto.RequestId);
-        if (request == null)
+        try
         {
-            return BadRequest("Request Not Found");
+            await _friendsService.AcceptFriendRequest(userId , friendRequestDto.RequestId);
+            return Ok("Request Accepted");
         }
-
-        if (request.ReceiverId != userId)
+        catch (Exception ex)
         {
-            return BadRequest("You Cant Accept This Request");
+            return BadRequest(ex.Message);
         }
-
-        if (request.Status != FriendRequestStatus.Pending)
-        {
-            return BadRequest("Request is Already Accepted Or Rejected");
-        }
-
-        request.Status = FriendRequestStatus.Accepted;
-
-        var friendship1 = new Friendship
-        {
-            UserId = userId,
-            FriendId = request.SenderId,
-            CreatedAt = DateTime.UtcNow
-        };
-
-        var friendship2 = new Friendship
-        {
-            UserId = request.SenderId,
-            FriendId = userId,
-            CreatedAt = DateTime.UtcNow
-        };
-
-        _context.Friendships.Add(friendship1);
-        _context.Friendships.Add(friendship2);
-        _context.SaveChanges();
-
-        return Ok("Request Accepted");
     }
 
     [HttpPost("reject")]
-    public IActionResult RejectRequest(FriendRequestActionDto friendRequestDto)
+    public async Task<IActionResult> RejectRequest(FriendRequestActionDto friendRequestDto)
     {
         var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (userIdStr == null)
@@ -170,30 +100,61 @@ public class FriendRequestController : ControllerBase
         }
         var userId = int.Parse(userIdStr);
 
-        var request = _context.FriendRequests.Find(friendRequestDto.RequestId);
-        if (request == null)
+        try
         {
-            return BadRequest("Request Not Found");
+            await _friendsService.RejectFriendRequest(userId , friendRequestDto.RequestId);
+            return Ok("Request Rejected");
         }
-
-        if (request.ReceiverId != userId)
+        catch (Exception ex)
         {
-            return BadRequest("You Cant Reject This Request");
+            return BadRequest(ex.Message);
         }
+    }
 
-        if (request.Status != FriendRequestStatus.Pending)
+    [HttpPost("block")]
+    public async Task<IActionResult> BlockUser(BlockUserDto blockUserDto)
+    {
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (userIdStr == null)
         {
-            return BadRequest("Request is Already Accepted Or Rejected");
+            return Unauthorized();
         }
+        var userId = int.Parse(userIdStr);
 
-        request.Status = FriendRequestStatus.Rejected;
-        _context.SaveChanges();
+        try
+        {
+            await _friendsService.BlockFriend(userId, blockUserDto.ReceiverId);
+            return Ok("User Blocked");
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
 
-        return Ok("Request Rejected");
+    [HttpPost("unblock")]
+    public async Task<IActionResult> UnblockUser(BlockUserDto unblockUserDto)
+    {
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (userIdStr == null)
+        {
+            return Unauthorized();
+        }
+        var userId = int.Parse(userIdStr);
+
+        try
+        {
+            await _friendsService.UnblockFriend(userId, unblockUserDto.ReceiverId);
+            return Ok("User Unblocked");
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     [HttpGet("friends")]
-    public IActionResult GetFriends()
+    public async Task<IActionResult> GetFriends()
     {
         var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (userIdStr == null)
@@ -202,23 +163,29 @@ public class FriendRequestController : ControllerBase
         }
         var userId = int.Parse(userIdStr);
 
-        var friends =
-            (from friendship in _context.Friendships
-             join user in _context.Users
-                 on friendship.FriendId equals user.Id
-             where friendship.UserId == userId
-             select new
-             {
-                 user.Id,
-                 user.Username
-             }).ToList();
-
-        var result = friends.Select(f => new {
-            Id = f.Id,
-            Username = f.Username,
-            IsOnline = _connectionManager.IsOnline(f.Id)
-        });
+        var result = await _friendsService.GetFriends(userId);
 
         return Ok(result);
+    }
+
+    [HttpGet("blocked")]
+    public async Task<IActionResult> GetBlockedUsers()
+    {
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (userIdStr == null)
+        {
+            return Unauthorized();
+        }
+        var userId = int.Parse(userIdStr);
+
+        try
+        {
+            var blocked = await _friendsService.GetBlockedUsers(userId);
+            return Ok(blocked);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 }

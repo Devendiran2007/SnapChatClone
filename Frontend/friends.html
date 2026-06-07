@@ -56,6 +56,9 @@
                 <button class="tab-btn" id="tab-pending" onclick="switchTab('pending')">
                     Pending <span class="badge" id="pending-count" style="background: var(--accent-blue); color: white;">0</span>
                 </button>
+                <button class="tab-btn" id="tab-blocked" onclick="switchTab('blocked')">
+                    Blocked <span class="badge" id="blocked-count" style="background: var(--accent-red); color: white;">0</span>
+                </button>
             </div>
         </div>
 
@@ -71,6 +74,11 @@
         <!-- Pending Requests Grid -->
         <div class="friends-grid hidden" id="pending-list">
             <!-- Pending request cards dynamically loaded here -->
+        </div>
+
+        <!-- Blocked Users Grid -->
+        <div class="friends-grid hidden" id="blocked-list">
+            <!-- Blocked user cards dynamically loaded here -->
         </div>
     </main>
 

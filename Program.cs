@@ -6,6 +6,8 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using SnapChatClone.Services.Messages;
 using SnapChatClone.Services.Connections;
+using SnapChatClone.Services.Friends;
+using SnapChatClone.Services.Stories;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,6 +16,8 @@ builder.Services.AddSignalR();
 
 builder.Services.AddSingleton<ConnectionManager>();
 builder.Services.AddScoped<IMessageService , MessageService>();
+builder.Services.AddScoped<IFriendsService, FriendService>();
+builder.Services.AddScoped<IStoryService, StoryService>();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {

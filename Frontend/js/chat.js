@@ -1,6 +1,15 @@
 const API_URL = "http://localhost:5204/api";
 const HUB_URL = "http://localhost:5204/chatHub";
 
+function parseDate(dateStr) {
+    if (!dateStr) return new Date();
+    if (dateStr instanceof Date) return dateStr;
+    if (typeof dateStr === 'string' && !dateStr.endsWith('Z') && !/[+-]\d{2}:\d{2}$/.test(dateStr)) {
+        return new Date(dateStr + 'Z');
+    }
+    return new Date(dateStr);
+}
+
 let connection = null;
 let currentUserId = null;
 let currentUsername = "";
@@ -12,8 +21,7 @@ let isTyping = false;
 
 // Toast helper
 function showToast(message, isError = false) {
-    // Standard alert or DOM toast if available
-    console.log(`[Toast] ${message}`);
+    showChatToast(message, isError);
 }
 
 // Redirect if unauthenticated
@@ -59,10 +67,10 @@ async function setupSignalR() {
         .build();
 
     // Listeners
-    connection.on("ReceiveMessage", (senderId, content) => {
+    connection.on("ReceiveMessage", (senderId, content, sentAt) => {
         // If we are currently chatting with the sender
         if (activeFriendId === senderId) {
-            appendMessage(senderId, content, new Date().toISOString(), true);
+            appendMessage(senderId, content, sentAt || new Date().toISOString(), true);
             scrollToBottom();
             // Call API to mark as seen
             markAsSeen(senderId);
@@ -147,7 +155,7 @@ function renderRecentChats() {
 
     container.innerHTML = recentChats.map(chat => {
         const isOnline = chat.isOnline;
-        const time = new Date(chat.lastMessageTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const time = parseDate(chat.lastMessageTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const isActive = activeFriendId === chat.userId ? 'active' : '';
 
         return `
@@ -187,7 +195,7 @@ function filterRecentChats() {
 
     container.innerHTML = filtered.map(chat => {
         const isOnline = chat.isOnline;
-        const time = new Date(chat.lastMessageTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const time = parseDate(chat.lastMessageTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const isActive = activeFriendId === chat.userId ? 'active' : '';
 
         return `
@@ -277,7 +285,7 @@ function appendMessage(senderId, content, sentAt, isNew = false) {
     const wrapper = document.createElement("div");
     wrapper.className = `message-wrapper ${isSent ? 'sent' : 'received'}`;
     
-    const time = new Date(sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const time = parseDate(sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     
     wrapper.innerHTML = `
         <div class="message-bubble">
@@ -402,7 +410,9 @@ function logout() {
 document.addEventListener("DOMContentLoaded", async () => {
     if (checkAuth()) {
         await fetchProfile();
+        await fetchAllUsers();
         await fetchRecentChats();
+        await fetchStories();
         await setupSignalR();
 
         // Check if navigated with a friendId query param
@@ -430,3 +440,242 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 });
+
+let allUsers = [];
+let stories = [];
+let storyViewerTimer = null;
+let currentStoriesToView = [];
+let currentStoryIndex = 0;
+
+async function fetchAllUsers() {
+    try {
+        const response = await fetch(`${API_URL}/Auth/users`);
+        if (response.ok) {
+            allUsers = await response.json();
+        }
+    } catch (e) {
+        console.error("Error fetching all users:", e);
+    }
+}
+
+function getUsername(userId) {
+    if (userId === currentUserId) return "My Story";
+    const user = allUsers.find(u => u.id === userId);
+    return user ? user.username : "Unknown User";
+}
+
+async function fetchStories() {
+    const token = localStorage.getItem("token");
+    try {
+        const response = await fetch(`${API_URL}/Story`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        if (response.ok) {
+            stories = await response.json();
+            renderStories();
+        }
+    } catch (e) {
+        console.error("Error fetching stories:", e);
+    }
+}
+
+function renderStories() {
+    const carousel = document.getElementById("stories-carousel");
+    if (!carousel) return;
+
+    let html = `
+        <div class="story-bubble add-story" onclick="openAddStoryModal()">
+            <div class="story-avatar-circle add">
+                <i class="fa-plus fas"></i>
+            </div>
+            <span class="story-username">My Story</span>
+        </div>
+    `;
+
+    const storiesByUser = {};
+    stories.forEach(story => {
+        if (!storiesByUser[story.userId]) {
+            storiesByUser[story.userId] = [];
+        }
+        storiesByUser[story.userId].push(story);
+    });
+
+    Object.keys(storiesByUser).forEach(userId => {
+        storiesByUser[userId].sort((a, b) => parseDate(b.createdAt) - parseDate(a.createdAt));
+    });
+
+    Object.keys(storiesByUser).forEach(userId => {
+        const userIdInt = parseInt(userId);
+        const username = getUsername(userIdInt);
+
+        html += `
+            <div class="story-bubble" onclick="viewUserStories(${userIdInt})">
+                <div class="story-avatar-circle">
+                    ${username.charAt(0).toUpperCase()}
+                </div>
+                <span class="story-username">${username}</span>
+            </div>
+        `;
+    });
+
+    carousel.innerHTML = html;
+}
+
+function viewUserStories(userId) {
+    currentStoriesToView = stories.filter(s => s.userId === userId)
+        .sort((a, b) => parseDate(a.createdAt) - parseDate(b.createdAt));
+
+    if (currentStoriesToView.length === 0) return;
+
+    currentStoryIndex = 0;
+    showStory(currentStoryIndex);
+}
+
+function showStory(index) {
+    if (index >= currentStoriesToView.length) {
+        closeStoryViewer();
+        return;
+    }
+
+    currentStoryIndex = index;
+    const story = currentStoriesToView[index];
+    const username = getUsername(story.userId);
+
+    const overlay = document.getElementById("story-viewer");
+    const img = document.getElementById("story-viewer-img");
+    const nameLabel = document.getElementById("story-viewer-name");
+    const timeLabel = document.getElementById("story-viewer-time");
+    const avatar = document.getElementById("story-viewer-avatar");
+    const progressContainer = document.getElementById("story-progress-container");
+
+    overlay.classList.add("show");
+    img.src = story.mediaUrl;
+    nameLabel.innerText = username;
+    avatar.innerText = username.charAt(0).toUpperCase();
+
+    const diffMs = new Date() - parseDate(story.createdAt);
+    const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    if (diffHrs > 0) {
+        timeLabel.innerText = `${diffHrs}h ago`;
+    } else if (diffMins > 0) {
+        timeLabel.innerText = `${diffMins}m ago`;
+    } else {
+        timeLabel.innerText = "Just now";
+    }
+
+    progressContainer.innerHTML = currentStoriesToView.map((s, idx) => {
+        let fillWidth = "0%";
+        if (idx < index) {
+            fillWidth = "100%";
+        }
+        return `
+            <div class="story-viewer-progress-bar">
+                <div class="story-viewer-progress-fill" id="story-progress-fill-${idx}" style="width: ${fillWidth};"></div>
+            </div>
+        `;
+    }).join('');
+
+    clearTimeout(storyViewerTimer);
+    const currentBar = document.getElementById(`story-progress-fill-${index}`);
+    
+    let start = null;
+    const duration = 4000;
+
+    function animateProgress(timestamp) {
+        if (!start) start = timestamp;
+        const elapsed = timestamp - start;
+        const progress = Math.min((elapsed / duration) * 100, 100);
+        
+        if (currentBar) {
+            currentBar.style.width = progress + "%";
+        }
+
+        if (elapsed < duration) {
+            storyViewerTimer = requestAnimationFrame(animateProgress);
+        } else {
+            showStory(currentStoryIndex + 1);
+        }
+    }
+
+    storyViewerTimer = requestAnimationFrame(animateProgress);
+}
+
+function closeStoryViewer() {
+    cancelAnimationFrame(storyViewerTimer);
+    const overlay = document.getElementById("story-viewer");
+    if (overlay) overlay.classList.remove("show");
+}
+
+function openAddStoryModal() {
+    const modal = document.getElementById("add-story-modal");
+    if (modal) {
+        modal.classList.add("show");
+        document.getElementById("story-media-url").value = "";
+    }
+}
+
+function closeAddStoryModal() {
+    const modal = document.getElementById("add-story-modal");
+    if (modal) modal.classList.remove("show");
+}
+
+function generateDemoStoryUrl() {
+    const randomId = Math.floor(Math.random() * 1000);
+    // Unsplash premium story mock backgrounds
+    const urls = [
+        "https://images.unsplash.com/photo-1504608524841-42fe6f032b4b?auto=format&fit=crop&w=400&q=80",
+        "https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=400&q=80",
+        "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=400&q=80",
+        "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=400&q=80"
+    ];
+    document.getElementById("story-media-url").value = urls[randomId % urls.length];
+}
+
+async function submitStory() {
+    const mediaUrlInput = document.getElementById("story-media-url");
+    const mediaUrl = mediaUrlInput.value.trim();
+    if (!mediaUrl) {
+        showChatToast("Please enter a media URL", true);
+        return;
+    }
+
+    const token = localStorage.getItem("token");
+    try {
+        const response = await fetch(`${API_URL}/Story`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({ mediaUrl })
+        });
+
+        if (response.ok) {
+            showChatToast("Story posted successfully!");
+            closeAddStoryModal();
+            fetchStories();
+        } else {
+            const errText = await response.text();
+            showChatToast(errText || "Failed to post story", true);
+        }
+    } catch (e) {
+        console.error("Error posting story:", e);
+        showChatToast("Connection failed", true);
+    }
+}
+
+function showChatToast(message, isError = false) {
+    const toast = document.getElementById("chat-toast");
+    const label = document.getElementById("toast-message");
+    
+    if (label) label.innerText = message;
+    if (toast) {
+        toast.style.borderLeftColor = isError ? "var(--accent-red)" : "var(--accent-green)";
+        toast.classList.add("show");
+        setTimeout(() => {
+            toast.classList.remove("show");
+        }, 3000);
+    }
+}
+

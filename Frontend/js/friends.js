@@ -4,6 +4,7 @@ let currentUsername = "";
 let allUsers = [];
 let friendsList = [];
 let pendingList = [];
+let blockedList = [];
 
 // Show dynamic toasts
 function showToast(message, isError = false) {
@@ -107,6 +108,9 @@ function renderFriends() {
                 <div class="friend-card-actions">
                     <button class="btn-secondary" onclick="openChatWith(${friend.id})">
                         <i class="fa-comments fas"></i> Chat
+                    </button>
+                    <button class="btn-secondary" onclick="blockFriend(${friend.id}, '${friend.username}')" style="border-color: var(--accent-red); color: var(--accent-red);">
+                        <i class="fa-ban fas"></i> Block
                     </button>
                 </div>
             </div>
@@ -312,19 +316,56 @@ async function sendFriendRequest(receiverId, username) {
 function switchTab(tab) {
     const tabFriends = document.getElementById("tab-my-friends");
     const tabPending = document.getElementById("tab-pending");
+    const tabBlocked = document.getElementById("tab-blocked");
     const listFriends = document.getElementById("friends-list");
     const listPending = document.getElementById("pending-list");
+    const listBlocked = document.getElementById("blocked-list");
+
+    tabFriends.classList.remove("active");
+    tabPending.classList.remove("active");
+    tabBlocked.classList.remove("active");
+    listFriends.classList.add("hidden");
+    listPending.classList.add("hidden");
+    listBlocked.classList.add("hidden");
 
     if (tab === 'friends') {
         tabFriends.classList.add("active");
-        tabPending.classList.remove("active");
         listFriends.classList.remove("hidden");
-        listPending.classList.add("hidden");
-    } else {
-        tabFriends.classList.remove("active");
+    } else if (tab === 'pending') {
         tabPending.classList.add("active");
-        listFriends.classList.add("hidden");
         listPending.classList.remove("hidden");
+    } else if (tab === 'blocked') {
+        tabBlocked.classList.add("active");
+        listBlocked.classList.remove("hidden");
+    }
+}
+// Block friend
+async function blockFriend(receiverId, username) {
+    if (!confirm(`Are you sure you want to block ${username}?`)) {
+        return;
+    }
+    const token = localStorage.getItem("token");
+    try {
+        const response = await fetch(`${API_URL}/FriendRequest/block`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({ receiverId })
+        });
+
+        if (response.ok) {
+            showToast(`${username} has been blocked.`);
+            fetchFriends();
+            fetchBlockedUsers();
+        } else {
+            const errText = await response.text();
+            showToast(errText || "Failed to block user", true);
+        }
+    } catch (e) {
+        console.error(e);
+        showToast("Error connection", true);
     }
 }
 
@@ -349,5 +390,92 @@ document.addEventListener("DOMContentLoaded", () => {
         fetchProfile();
         fetchFriends();
         fetchPendingRequests();
+        fetchBlockedUsers();
     }
 });
+
+// Fetch blocked users
+async function fetchBlockedUsers() {
+    const token = localStorage.getItem("token");
+    try {
+        const response = await fetch(`${API_URL}/FriendRequest/blocked`, {
+            headers: {
+                "Authorization": `Bearer ${token}`
+            }
+        });
+
+        if (response.ok) {
+            blockedList = await response.json();
+            document.getElementById("blocked-count").innerText = blockedList.length;
+            renderBlocked();
+        }
+    } catch (e) {
+        console.error("Error fetching blocked users:", e);
+    }
+}
+
+// Render blocked list
+function renderBlocked() {
+    const container = document.getElementById("blocked-list");
+    if (!container) return;
+
+    if (blockedList.length === 0) {
+        container.innerHTML = `
+            <div class="text-center" style="grid-column: 1/-1; color: var(--text-gray); padding: 3rem;">
+                <i class="fa-user-slash fas" style="font-size: 3rem; color: var(--bg-input); margin-bottom: 1.5rem;"></i>
+                <p>No blocked users.</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = blockedList.map(user => {
+        return `
+            <div class="friend-card">
+                <div class="friend-card-avatar">
+                    <div class="avatar-circle" style="width: 60px; height: 60px; font-size: 1.5rem; background: linear-gradient(135deg, var(--bg-input) 0%, var(--accent-red) 100%);">
+                        ${user.username.charAt(0).toUpperCase()}
+                    </div>
+                </div>
+                <div class="friend-card-name">${user.username}</div>
+                <div class="friend-card-status" style="color: var(--accent-red);">Blocked</div>
+                <div class="friend-card-actions">
+                    <button class="btn-secondary" onclick="unblockUser(${user.id}, '${user.username}')" style="border-color: var(--accent-green); color: var(--accent-green);">
+                        <i class="fa-unlock fas"></i> Unblock
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Unblock user API call
+async function unblockUser(receiverId, username) {
+    if (!confirm(`Are you sure you want to unblock ${username}?`)) {
+        return;
+    }
+    const token = localStorage.getItem("token");
+    try {
+        const response = await fetch(`${API_URL}/FriendRequest/unblock`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({ receiverId })
+        });
+
+        if (response.ok) {
+            showToast(`${username} has been unblocked.`);
+            fetchBlockedUsers();
+            fetchFriends();
+        } else {
+            const errText = await response.text();
+            showToast(errText || "Failed to unblock user", true);
+        }
+    } catch (e) {
+        console.error(e);
+        showToast("Error connection", true);
+    }
+}
+

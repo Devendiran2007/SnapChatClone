@@ -69,7 +69,7 @@ public class ChatHub : Hub
             var connections = _connections[receiverId];
             foreach (var connectionId in connections)
             {
-                await Clients.Client(connectionId).SendAsync("ReceiveMessage",savedMessage.SenderId,savedMessage.Content);
+                await Clients.Client(connectionId).SendAsync("ReceiveMessage", savedMessage.SenderId, savedMessage.Content, savedMessage.SentAt);
             }
         }
 
@@ -81,7 +81,7 @@ public class ChatHub : Hub
                 {
                     continue; 
                 }
-                await Clients.Client(connectionId).SendAsync("ReceiveMessage",savedMessage.SenderId,savedMessage.Content);
+                await Clients.Client(connectionId).SendAsync("ReceiveMessage", savedMessage.SenderId, savedMessage.Content, savedMessage.SentAt);
             }
         }
     }

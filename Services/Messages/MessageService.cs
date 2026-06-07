@@ -24,8 +24,20 @@ public class MessageService : IMessageService
         );
     }
 
+    private async Task<bool> blockCheck(int userId , int freindId) {
+        var checkBlock = await _context.FriendRequests.FirstOrDefaultAsync(
+            s => (s.SenderId == userId && s.ReceiverId == freindId
+            || s.SenderId == freindId && s.ReceiverId == userId) && s.Status == FriendRequestStatus.Blocked
+        );
+        return checkBlock != null;
+    }
+
     public async Task<Message> SendMessageAsync(int senderId , SendMessageDto sendMessageDto) 
     {
+        var blocked = await blockCheck(senderId , sendMessageDto.ReceiverId);
+        if (blocked == true) {
+            throw new Exception("You have Blocked this user");
+        }
         if (!await freindCheck(senderId , sendMessageDto.ReceiverId)) {
             throw new Exception("Users are Not Freinds");
         }

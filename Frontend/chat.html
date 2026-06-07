@@ -32,6 +32,25 @@
                 </div>
             </div>
 
+            <!-- Stories Section -->
+            <div class="stories-section">
+                <div class="stories-label">
+                    <span>Stories</span>
+                    <button class="add-story-btn" onclick="openAddStoryModal()" title="Add Story">
+                        <i class="fa-plus fas"></i>
+                    </button>
+                </div>
+                <div class="stories-container" id="stories-carousel">
+                    <!-- My story bubble -->
+                    <div class="story-bubble add-story" onclick="openAddStoryModal()">
+                        <div class="story-avatar-circle add">
+                            <i class="fa-plus fas"></i>
+                        </div>
+                        <span class="story-username">My Story</span>
+                    </div>
+                </div>
+            </div>
+
             <!-- Search Conversations -->
             <div class="sidebar-search">
                 <div class="search-box">
@@ -106,6 +125,56 @@
                 </div>
             </div>
         </main>
+    </div>
+
+    <!-- Add Story Modal -->
+    <div class="modal-overlay" id="add-story-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Create New Story</h3>
+                <button class="modal-close-btn" onclick="closeAddStoryModal()">
+                    <i class="fa-xmark fas"></i>
+                </button>
+            </div>
+            
+            <div class="form-group" style="margin-top: 1rem;">
+                <label class="form-label">Media URL</label>
+                <input type="text" id="story-media-url" class="form-input" placeholder="Paste image/media URL here...">
+            </div>
+
+            <div style="display: flex; gap: 0.5rem; margin-top: 1.5rem;">
+                <button class="btn-primary" onclick="submitStory()">Post Story</button>
+                <button class="btn-secondary" onclick="generateDemoStoryUrl()">Demo Image</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Story Viewer Overlay -->
+    <div class="story-viewer-overlay" id="story-viewer" onclick="closeStoryViewer()">
+        <div class="story-viewer-progress-container" id="story-progress-container">
+            <!-- Progress bars loaded dynamically -->
+        </div>
+        <div class="story-viewer-header">
+            <div class="story-viewer-user">
+                <div class="story-viewer-avatar" id="story-viewer-avatar">U</div>
+                <div>
+                    <span class="story-viewer-name" id="story-viewer-name">Username</span>
+                    <span class="story-viewer-time" id="story-viewer-time">5h ago</span>
+                </div>
+            </div>
+            <button class="story-viewer-close" onclick="closeStoryViewer()">
+                <i class="fa-xmark fas"></i>
+            </button>
+        </div>
+        <div class="story-viewer-content">
+            <img class="story-viewer-media" id="story-viewer-img" src="" alt="Story content">
+        </div>
+    </div>
+
+    <!-- Toast notification for Chat -->
+    <div id="chat-toast" class="toast">
+        <i class="fa-bell fas"></i>
+        <span id="toast-message">Message</span>
     </div>
 
     <!-- SignalR client library CDN -->
